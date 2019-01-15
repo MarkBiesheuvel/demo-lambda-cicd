@@ -45,3 +45,7 @@ Resources:
         S3Bucket: codepipeline-eu-west-3-50005514925
         S3Key: lambda.zip
         S3ObjectVersion: !Ref VersionId
+
+Outputs:
+  LambdaName:
+    Value: !Ref Function
