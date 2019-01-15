@@ -107,6 +107,27 @@ Resources:
                   - iam:PutRolePolicy
                   - iam:DeleteRole
                   - iam:DeleteRolePolicy
+  TriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: events.amazonaws.com
+      Policies:
+        -
+          PolicyName: AllowCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: '*'
+                Action: codepipeline:StartPipelineExecution
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -116,6 +137,30 @@ Resources:
     Type: AWS::CodeCommit::Repository
     Properties:
       RepositoryName: !Ref ProjectName
+  Trigger:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - CodeCommit Repository State Change
+        resources:
+          - !GetAtt Repository.Arn
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - master
+      State: ENABLED
+      Targets:
+        -
+          Id: pipeline
+          Arn: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}
+          RoleArn: !GetAtt TriggerRole.Arn
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -160,5 +205,3 @@ Resources:
                 # TemplateConfiguration:
               InputArtifacts:
                 - Name: SourceArtifact
-
-# TODO: trigger
