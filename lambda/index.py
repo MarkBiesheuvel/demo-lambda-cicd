@@ -1,9 +1,11 @@
-import json
+import dice
 
 def lambda_handler(event, context):
-    print(json.dumps(event))
+    outcome = dice.throw()
+
+    print('Outcome: {}'.format(outcome))
 
     return {
         'statusCode': 200,
-        'body': 'Hello World!'
+        'body': outcome
     }
