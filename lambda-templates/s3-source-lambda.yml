@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Inline Lambda function that responds with Hello World
+Description: S3 sourced Lambda function
 
 Parameters:
   VersionId:

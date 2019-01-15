@@ -1,0 +1,164 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Pipeline to deploy Lambda function
+
+Parameters:
+  ProjectName:
+    Type: String
+
+Resources:
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: codepipeline.amazonaws.com
+      Policies:
+        -
+          PolicyName: AllowCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: '*'
+                Action: 'iam:PassRole'
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - 'codecommit:CancelUploadArchive'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:UploadArchive'
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetObject'
+                  - 's3:GetBucketVersioning'
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - 'cloudformation:CreateStack'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:DescribeStacks'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:CreateChangeSet'
+                  - 'cloudformation:DeleteChangeSet'
+                  - 'cloudformation:DescribeChangeSet'
+                  - 'cloudformation:ExecuteChangeSet'
+                  - 'cloudformation:SetStackPolicy'
+                  - 'cloudformation:ValidateTemplate'
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: cloudformation.amazonaws.com
+      Policies:
+        -
+          PolicyName: AllowCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - iam:Get*
+                  - iam:List*
+                  - iam:PassRole
+                  - iam:CreateRole
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  Repository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref ProjectName
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Ref 'AWS::StackName'
+      ArtifactStore:
+        Location: !Ref ArtifactBucket
+        Type: S3
+      RestartExecutionOnUpdate: True
+      RoleArn: !GetAtt PipelineRole.Arn
+      Stages:
+        -
+          Name: Source
+          Actions:
+            -
+              Name: Repository
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !GetAtt Repository.Name
+                BranchName: master
+              OutputArtifacts:
+                - Name: SourceArtifact
+        -
+          Name: Deploy
+          Actions:
+            -
+              Name: Production
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Ref ProjectName
+                RoleArn: !GetAtt CloudFormationRole.Arn
+                Capabilities: CAPABILITY_IAM
+                TemplatePath: 'SourceArtifact::lambda-templates/inline-lambda.yml'
+                # TemplateConfiguration:
+              InputArtifacts:
+                - Name: SourceArtifact
+
+# TODO: trigger
