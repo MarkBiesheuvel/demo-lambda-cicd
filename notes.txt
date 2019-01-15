@@ -1,7 +1,7 @@
-SourceArtifact::cloudformation/1-inline-lambda.yaml
+SourceArtifact::lambda-templates/inline-lambda.yml
 
 
-SourceArtifact::cloudformation/2-s3-based-lambda.yml
+SourceArtifact::lambda-templates/s3-source-lambda.yml
 BuildArtifact::configuration.json
 
 Also add second input artifact
