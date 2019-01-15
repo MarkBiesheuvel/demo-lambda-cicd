@@ -6,7 +6,7 @@ phases:
       - apt-get install jq zip
   build:
     commands:
-      - cd lambda
+      - cd source
       - zip -r9 ../lambda.zip *
       - cd ..
       - aws s3api put-object --bucket codepipeline-eu-west-3-50005514925 --key lambda.zip --server-side-encryption aws:kms --body lambda.zip > response.json

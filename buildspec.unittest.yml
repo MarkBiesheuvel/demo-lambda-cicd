@@ -1,0 +1,12 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - pip install nose nose-timer coverage
+  build:
+    commands:
+      - nosetests --exe --with-timer --with-coverage --cover-package=source.dice --cover-html
+artifacts:
+  files:
+    - cover/*
+  discard-paths: yes
