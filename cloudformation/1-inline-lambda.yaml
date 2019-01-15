@@ -1,0 +1,50 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Inline Lambda function that responds with Hello World
+
+Resources:
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        -
+          PolicyName: AllowCloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: arn:aws:logs:*:*:*
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Responds with Hello World
+      Role: !GetAtt FunctionRole.Arn
+      Timeout: 5 # seconds
+      MemorySize: 128 # MB
+      Runtime: python3.6
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: >
+          import json
+
+          def lambda_handler(event, context):
+              print(json.dumps(event))
+
+              return {
+                  'statusCode': 200,
+                  'body': 'Hello World!'
+              }
