@@ -103,6 +103,37 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        -
+          PolicyName: InlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: arn:aws:logs:*:*:*
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - cloudformation:DescribeStacks
+                  - lambda:invokeFunction
+                  - codepipeline:PutJob*Result
   CloudFormationRole:
     Type: AWS::IAM::Role
     Properties:
@@ -233,6 +264,68 @@ Resources:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
       TimeoutInMinutes: 5
+  IntegrationTest:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Runs integration test on Testing Stack
+      Role: !GetAtt FunctionRole.Arn
+      Timeout: 90 # seconds
+      MemorySize: 128 # MB
+      Runtime: python3.6
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+
+          cloudformation_client = boto3.client('cloudformation')
+          codepipeline_client = boto3.client('codepipeline')
+          lambda_client = boto3.client('lambda')
+
+          def invoke(function_name):
+              try:
+                  response = lambda_client.invoke(
+                      FunctionName=function_name,
+                  )
+
+                  payload = json.loads(response['Payload'].read())
+
+                  return payload['body']
+              except:
+                  return 0
+
+          def success(job_id):
+              print('SUCCESS')
+              codepipeline_client.put_job_success_result(
+                  jobId=job_id,
+              )
+
+          def failure(job_id, message, type='JobFailed'):
+              print('FAILURE: {}'.format(message))
+              codepipeline_client.put_job_failure_result(
+                  jobId='string',
+                  failureDetails={
+                      'type': type,
+                      'message': message,
+                  }
+              )
+
+          def lambda_handler(event, context):
+              print(json.dumps(event))
+
+              job = event['CodePipeline.job']
+
+              response = cloudformation_client.describe_stacks(
+                  StackName='test-${ProjectName}'
+              )
+
+              function_name = response['Stacks'][0]['Outputs'][0]['OutputValue']
+
+              for _ in range(1000):
+                  if invoke(function_name) not in [1, 2, 3, 4, 5, 6]:
+                      return failure(job['id'], 'Lambda function gave unexpected result')
+              else:
+                  return success(job['id'])
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -291,6 +384,49 @@ Resources:
                 - Name: SourceArtifact
               OutputArtifacts:
                 - Name: BuildArtifact
+        -
+          Name: IntegrationTest
+          Actions:
+            -
+              Name: CreateTestStack
+              RunOrder: 1
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub test-${ProjectName}
+                RoleArn: !GetAtt CloudFormationRole.Arn
+                Capabilities: CAPABILITY_IAM
+                TemplatePath: 'SourceArtifact::lambda-templates/s3-source-lambda.yml'
+                TemplateConfiguration: 'BuildArtifact::configuration.json'
+              InputArtifacts:
+                - Name: SourceArtifact
+                - Name: BuildArtifact
+            -
+              Name: ExecuteLambda
+              RunOrder: 2
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Version: 1
+                Provider: Lambda
+              Configuration:
+                FunctionName: !Ref IntegrationTest
+            -
+              Name: DeleteTestStack
+              RunOrder: 3
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: DELETE_ONLY
+                StackName: !Sub test-${ProjectName}
+                RoleArn: !GetAtt CloudFormationRole.Arn
         -
           Name: Deploy
           Actions:
