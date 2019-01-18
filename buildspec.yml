@@ -9,9 +9,9 @@ phases:
       - cd source
       - zip -r9 ../lambda.zip *
       - cd ..
-      - aws s3api put-object --bucket codepipeline-eu-west-3-50005514925 --key lambda.zip --server-side-encryption aws:kms --body lambda.zip > response.json
+      - aws s3api put-object --bucket $S3_BUCKET --key lambda.zip --server-side-encryption aws:kms --body lambda.zip > response.json
       - cat response.json
-      - cat response.json | jq '{"Parameters":{"VersionId":.VersionId}}' > configuration.json
+      - cat response.json | jq --arg S3_BUCKET $S3_BUCKET '{"Parameters":{"VersionId":.VersionId,"BucketName":$S3_BUCKET}}' > configuration.json
       - cat configuration.json
 artifacts:
   files:

@@ -72,6 +72,37 @@ Resources:
                   - 'cloudformation:ExecuteChangeSet'
                   - 'cloudformation:SetStackPolicy'
                   - 'cloudformation:ValidateTemplate'
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: codebuild.amazonaws.com
+      Policies:
+        -
+          PolicyName: InlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Resource: !Sub '${ArtifactBucket.Arn}/*'
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+              -
+                Effect: Allow
+                Resource: arn:aws:logs:*:*:*
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
   CloudFormationRole:
     Type: AWS::IAM::Role
     Properties:
@@ -89,6 +120,12 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              -
+                Effect: Allow
+                Resource: !Sub '${ArtifactBucket.Arn}/*'
+                Action:
+                  - s3:GetObject
+                  - s3:GetObject*
               -
                 Effect: Allow
                 Resource: '*'
@@ -163,6 +200,24 @@ Resources:
           Id: pipeline
           Arn: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}
           RoleArn: !GetAtt TriggerRole.Arn
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/python:3.6.5-1.6.0
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          -
+            Type: PLAINTEXT
+            Name: S3_BUCKET
+            Value: !Ref ArtifactBucket
+      ServiceRole: !GetAtt BuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 5
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -190,6 +245,22 @@ Resources:
               OutputArtifacts:
                 - Name: SourceArtifact
         -
+          Name: Build
+          Actions:
+            -
+              Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref BuildProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+        -
           Name: Deploy
           Actions:
             -
@@ -204,7 +275,8 @@ Resources:
                 StackName: !Ref ProjectName
                 RoleArn: !GetAtt CloudFormationRole.Arn
                 Capabilities: CAPABILITY_IAM
-                TemplatePath: 'SourceArtifact::lambda-templates/inline-lambda.yml'
-                # TemplateConfiguration:
+                TemplatePath: 'SourceArtifact::lambda-templates/s3-source-lambda.yml'
+                TemplateConfiguration: 'BuildArtifact::configuration.json'
               InputArtifacts:
                 - Name: SourceArtifact
+                - Name: BuildArtifact

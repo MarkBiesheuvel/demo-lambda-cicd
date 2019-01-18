@@ -4,6 +4,8 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: S3 sourced Lambda function
 
 Parameters:
+  BucketName:
+    Type: String
   VersionId:
     Type: String
 
@@ -35,14 +37,14 @@ Resources:
   Function:
     Type: AWS::Lambda::Function
     Properties:
-      Description: Responds with Hello World
+      Description: Responds with a throw of a dice
       Role: !GetAtt FunctionRole.Arn
       Timeout: 5 # seconds
       MemorySize: 128 # MB
       Runtime: python3.6
       Handler: index.lambda_handler
       Code:
-        S3Bucket: codepipeline-eu-west-3-50005514925
+        S3Bucket: !Ref BucketName
         S3Key: lambda.zip
         S3ObjectVersion: !Ref VersionId
 
