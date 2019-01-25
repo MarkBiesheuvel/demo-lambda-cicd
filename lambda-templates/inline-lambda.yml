@@ -44,6 +44,6 @@ Resources:
           def lambda_handler(event, context):
 
               return {
-                  'statusCode': 404,
-                  'body': 'Not Found'
+                  'statusCode': 200,
+                  'body': 'Hello World!'
               }
