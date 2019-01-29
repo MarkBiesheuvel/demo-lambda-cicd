@@ -205,6 +205,5 @@ Resources:
                 RoleArn: !GetAtt CloudFormationRole.Arn
                 Capabilities: CAPABILITY_IAM
                 TemplatePath: 'SourceArtifact::lambda-templates/inline-lambda.yml'
-                # TemplateConfiguration:
               InputArtifacts:
                 - Name: SourceArtifact

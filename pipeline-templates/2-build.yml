@@ -217,6 +217,7 @@ Resources:
       ServiceRole: !GetAtt BuildRole.Arn
       Source:
         Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
       TimeoutInMinutes: 5
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
