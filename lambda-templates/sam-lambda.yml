@@ -1,0 +1,24 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Transform: AWS::Serverless-2016-10-31
+
+Description: Serverless Application Model based Lambda function
+
+Resources:
+
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Responds with a throw of a dice
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Timeout: 5 # seconds
+      MemorySize: 128 # MB
+      Runtime: python3.6
+      Handler: index.lambda_handler
+      CodeUri: ../source/
+
+Outputs:
+  LambdaName:
+    Value: !Ref Function

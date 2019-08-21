@@ -1,18 +1,13 @@
 version: 0.2
 phases:
   install:
+    runtime-versions:
+      python: 3.7
     commands:
-      - apt-get update
-      - apt-get install jq zip
+      - pip install aws-sam-cli
   build:
     commands:
-      - cd source
-      - zip -r9 ../lambda.zip *
-      - cd ..
-      - aws s3api put-object --bucket $S3_BUCKET --key lambda.zip --server-side-encryption aws:kms --body lambda.zip > response.json
-      - cat response.json
-      - cat response.json | jq --arg S3_BUCKET $S3_BUCKET '{"Parameters":{"VersionId":.VersionId,"BucketName":$S3_BUCKET}}' > configuration.json
-      - cat configuration.json
+      - sam package --s3-bucket $S3_BUCKET --template-file lambda-templates/sam-lambda.yml --output-template-file package.yml
 artifacts:
   files:
-    - configuration.json
+    - package.yml
