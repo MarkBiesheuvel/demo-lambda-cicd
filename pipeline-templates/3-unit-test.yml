@@ -122,6 +122,11 @@ Resources:
             Statement:
               -
                 Effect: Allow
+                Resource: !Sub arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-*
+                Action:
+                  - cloudformation:CreateChangeSet
+              -
+                Effect: Allow
                 Resource: !Sub '${ArtifactBucket.Arn}/*'
                 Action:
                   - s3:GetObject
@@ -144,8 +149,10 @@ Resources:
                   - iam:CreateRole
                   - iam:UpdateAssumeRolePolicy
                   - iam:PutRolePolicy
+                  - iam:AttachRolePolicy
                   - iam:DeleteRole
                   - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
   TriggerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -207,7 +214,7 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/python:3.6.5-1.6.0
+        Image: aws/codebuild/standard:2.0
         Type: LINUX_CONTAINER
       ServiceRole: !GetAtt BuildRole.Arn
       Source:
@@ -221,7 +228,7 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/python:3.6.5-1.6.0
+        Image: aws/codebuild/standard:2.0
         Type: LINUX_CONTAINER
         EnvironmentVariables:
           -
@@ -305,9 +312,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 StackName: !Ref ProjectName
                 RoleArn: !GetAtt CloudFormationRole.Arn
-                Capabilities: CAPABILITY_IAM
-                TemplatePath: 'SourceArtifact::lambda-templates/s3-source-lambda.yml'
-                TemplateConfiguration: 'BuildArtifact::configuration.json'
+                Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
+                TemplatePath: 'BuildArtifact::package.yml'
               InputArtifacts:
-                - Name: SourceArtifact
                 - Name: BuildArtifact

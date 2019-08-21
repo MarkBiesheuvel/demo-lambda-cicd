@@ -285,5 +285,4 @@ Resources:
                 Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
                 TemplatePath: 'BuildArtifact::package.yml'
               InputArtifacts:
-                - Name: SourceArtifact
                 - Name: BuildArtifact
