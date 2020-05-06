@@ -7,7 +7,7 @@ phases:
       - pip install nose nose-timer coverage
   build:
     commands:
-      - nosetests --exe --with-timer --with-coverage --cover-package=source.dice --cover-html
+      - nosetests --exe --with-timer --with-coverage --cover-package=source.arithmetic --cover-html
 artifacts:
   files:
     - cover/*
