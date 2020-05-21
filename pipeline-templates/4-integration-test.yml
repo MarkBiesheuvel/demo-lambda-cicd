@@ -170,6 +170,14 @@ Resources:
                   - lambda:DeleteFunction
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
+                  - lambda:GetFunctionConfiguration
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+              -
+                Effect: Allow
+                Resource: '*'
+                Action:
+                  - apigateway:*
               -
                 Effect: Allow
                 Resource: '*'
@@ -282,25 +290,13 @@ Resources:
       Handler: index.lambda_handler
       Code:
         ZipFile: !Sub |
-          import json
-          import boto3
+          from boto3 import client
+          from urllib.parse import urlencode
+          from urllib.request import urlopen
 
-          cloudformation_client = boto3.client('cloudformation')
-          codepipeline_client = boto3.client('codepipeline')
-          lambda_client = boto3.client('lambda')
+          cloudformation_client = client('cloudformation')
+          codepipeline_client = client('codepipeline')
 
-          def invoke(function_name, a, b):
-              try:
-                  response = lambda_client.invoke(
-                      FunctionName=function_name,
-                      Payload=json.dumps({'a': a, 'b': b}),
-                  )
-
-                  payload = json.loads(response['Payload'].read())
-
-                  return payload['body']
-              except:
-                  return 0
 
           def success(job_id):
               print('SUCCESS')
@@ -311,7 +307,7 @@ Resources:
           def failure(job_id, message, type='JobFailed'):
               print('FAILURE: {}'.format(message))
               codepipeline_client.put_job_failure_result(
-                  jobId='string',
+                  jobId=job_id,
                   failureDetails={
                       'type': type,
                       'message': message,
@@ -319,20 +315,30 @@ Resources:
               )
 
           def lambda_handler(event, context):
-              print(json.dumps(event))
-
               job = event['CodePipeline.job']
+              id = job['id']
+              stack_name = job['data']['actionConfiguration']['configuration']['UserParameters']
 
-              response = cloudformation_client.describe_stacks(
-                  StackName='test-${ProjectName}'
-              )
+              print('Stack name: {}'.format(stack_name))
+              print('Job ID: {}'.format(id))
 
-              function_name = response['Stacks'][0]['Outputs'][0]['OutputValue']
+              response = cloudformation_client.describe_stacks(StackName=stack_name)
+              url = response['Stacks'][0]['Outputs'][0]['OutputValue']
 
-              if invoke(function_name, 4, 6) == 10:
-                  return success(job['id'])
+              url = '{}?{}'.format(url, urlencode({
+                  'a': 7,
+                  'b': 35,
+              }))
+
+              print('URL: {}'.format(url))
+
+              response = urlopen(url)
+              result = int(response.read())
+
+              if result == 42:
+                  success(job['id'])
               else:
-                  return failure(job['id'], 'Lambda function gave unexpected result')
+                  failure(job['id'], 'Lambda function gave unexpected result')
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -421,6 +427,7 @@ Resources:
                 Provider: Lambda
               Configuration:
                 FunctionName: !Ref IntegrationTest
+                UserParameters: !Sub test-${ProjectName}
             -
               Name: DeleteTestStack
               RunOrder: 3
