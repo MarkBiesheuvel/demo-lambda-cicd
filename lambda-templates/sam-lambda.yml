@@ -10,7 +10,6 @@ Resources:
   Function:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Responds with a throw of a dice
       Policies:
         - AWSLambdaBasicExecutionRole
       Timeout: 5 # seconds
@@ -18,7 +17,15 @@ Resources:
       Runtime: python3.6
       Handler: index.lambda_handler
       CodeUri: ../source/
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+
+  Api:
+    Type: AWS::Serverless::HttpApi
 
 Outputs:
-  LambdaName:
-    Value: !Ref Function
+  Url:
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}
