@@ -35,7 +35,7 @@ Resources:
       Role: !GetAtt FunctionRole.Arn
       Timeout: 5 # seconds
       MemorySize: 128 # MB
-      Runtime: python3.6
+      Runtime: python3.8
       Handler: index.lambda_handler
       Code:
         ZipFile: >
