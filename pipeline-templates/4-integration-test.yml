@@ -170,6 +170,7 @@ Resources:
                   - lambda:DeleteFunction
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
+                  - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
                   - lambda:AddPermission
                   - lambda:RemovePermission
